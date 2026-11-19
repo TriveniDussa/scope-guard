@@ -165,13 +165,10 @@ erDiagram
 - `id` (UUID, Primary Key, default `uuid4`): Task identifier.
 - `workspace_id` (UUID, FK -> `workspaces.id` ON DELETE CASCADE, NOT NULL, INDEX): Tenant isolation link.
 - `project_id` (UUID, FK -> `projects.id` ON DELETE CASCADE, NOT NULL, INDEX): Parent project.
-- `scope_item_id` (UUID, FK -> `scope_items.id` ON DELETE SET NULL, NULLABLE, INDEX): Associated scope item.
-- `assigned_to_user_id` (UUID, FK -> `users.id` ON DELETE SET NULL, NULLABLE, INDEX): Assignee.
+- `scope_item_id` (UUID, FK -> `scope_items.id` ON DELETE CASCADE, NOT NULL, INDEX): Linked Scope of Work deliverable.
 - `title` (VARCHAR(255), NOT NULL): Task description.
-- `description` (TEXT, NULLABLE): Detailed technical instructions.
-- `status` (VARCHAR(50), DEFAULT `'todo'`, NOT NULL): `todo`, `in_progress`, `in_review`, `done`.
-- `priority` (VARCHAR(50), DEFAULT `'medium'`, NOT NULL): `low`, `medium`, `high`, `urgent`.
-- `due_date` (TIMESTAMP WITH TIME ZONE, NULLABLE).
+- `due_date` (DATE, NULLABLE): Target completion date.
+- `status` (VARCHAR(50), DEFAULT `'To do'`, NOT NULL): `To do`, `Doing`, `Done`.
 - `created_at` (TIMESTAMP WITH TIME ZONE, DEFAULT `now()`, NOT NULL).
 - `updated_at` (TIMESTAMP WITH TIME ZONE, DEFAULT `now()`, NOT NULL).
 
@@ -324,6 +321,13 @@ tests/test_workspace_isolation.py (1 passed)
 - `PUT /api/v1/scope-items/{id}`: Update included/excluded descriptions or project.
 - `DELETE /api/v1/scope-items/{id}`: Delete a scope item.
 
+### Task Management (`/api/v1/tasks`)
+- `POST /api/v1/tasks`: Create a task linked to an approved scope item deliverable and project.
+- `GET /api/v1/tasks`: List all tasks in the workspace (supports `?project_id=`, `?scope_item_id=`, and `?status=` filters).
+- `GET /api/v1/tasks/{id}`: Retrieve a single task by ID.
+- `PUT /api/v1/tasks/{id}`: Update task title, due date, status (`To do`, `Doing`, `Done`), or linked project/scope item.
+- `DELETE /api/v1/tasks/{id}`: Delete a task within the workspace.
+
 ---
 
 ### Step 3: Start Backend API Server
@@ -362,3 +366,4 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 | **Client CRUD** | Full CRUD with input validation and workspace scoping | ✅ 8 tests in `test_clients.py` |
 | **Project CRUD** | Client-project workspace relationship enforcement & `Active`/`Done` status | ✅ 10 tests in `test_projects.py` |
 | **Scope of Work CRUD** | Dual Included/Not Included text fields, project validation & filtering | ✅ 11 tests in `test_scope_items.py` |
+| **Task Management CRUD** | Scope-item deliverable linking, project relationship check, `To do`/`Doing`/`Done` status | ✅ 12 tests in `test_tasks.py` (50 total passing tests) |

@@ -21,6 +21,13 @@ from app.schemas.scope_item import (
     ScopeItemRead,
     ScopeItemUpdate,
 )
+from app.schemas.task import (
+    TaskBase,
+    TaskCreate,
+    TaskRead,
+    TaskUpdate,
+    TaskStatus,
+)
 
 __all__ = [
     "Token",
@@ -47,4 +54,9 @@ __all__ = [
     "ScopeItemCreate",
     "ScopeItemRead",
     "ScopeItemUpdate",
+    "TaskBase",
+    "TaskCreate",
+    "TaskRead",
+    "TaskUpdate",
+    "TaskStatus",
 ]

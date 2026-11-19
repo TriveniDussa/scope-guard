@@ -28,11 +28,6 @@ class User(Base, TimestampMixin):
 
     # Relationships
     workspace = relationship("Workspace", back_populates="users")
-    assigned_tasks = relationship(
-        "Task",
-        back_populates="assigned_to",
-        foreign_keys="Task.assigned_to_user_id",
-    )
     submitted_requests = relationship(
         "Request",
         back_populates="submitted_by",

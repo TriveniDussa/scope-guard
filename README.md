@@ -152,14 +152,12 @@ erDiagram
 - `created_at` (TIMESTAMP WITH TIME ZONE, DEFAULT `now()`, NOT NULL).
 - `updated_at` (TIMESTAMP WITH TIME ZONE, DEFAULT `now()`, NOT NULL).
 
-#### 5. `scope_items` (Deliverable Baselines)
+#### 5. `scope_items` (Deliverable Baselines & Boundaries)
 - `id` (UUID, Primary Key, default `uuid4`): Deliverable identifier.
 - `workspace_id` (UUID, FK -> `workspaces.id` ON DELETE CASCADE, NOT NULL, INDEX): Tenant isolation link.
 - `project_id` (UUID, FK -> `projects.id` ON DELETE CASCADE, NOT NULL, INDEX): Parent project.
-- `title` (VARCHAR(255), NOT NULL): Deliverable summary (e.g. "OAuth2 Social Authentication").
-- `description` (TEXT, NULLABLE): Detailed contractual acceptance criteria.
-- `status` (VARCHAR(50), DEFAULT `'included'`, NOT NULL): `included`, `out_of_scope`, `pending_approval`.
-- `estimated_hours` (NUMERIC(8, 2), NULLABLE): Estimated work hours budgeted.
+- `included_description` (TEXT, NOT NULL): Contractually promised deliverables (e.g., "Home page design, five pages, contact form").
+- `not_included_description` (TEXT, NOT NULL): Explicit out-of-scope exclusions (e.g., "Hindi language version, payment gateway integration").
 - `created_at` (TIMESTAMP WITH TIME ZONE, DEFAULT `now()`, NOT NULL).
 - `updated_at` (TIMESTAMP WITH TIME ZONE, DEFAULT `now()`, NOT NULL).
 
@@ -286,18 +284,45 @@ Execute the automated test suite covering signup, login, password verification, 
 cd backend
 python -m pytest -v
 ```
-All 9 test cases will run and pass:
+All test cases will run and pass:
 ```text
-tests/test_auth.py::test_agency_signup_success PASSED
-tests/test_auth.py::test_agency_signup_duplicate_email PASSED
-tests/test_auth.py::test_login_success PASSED
-tests/test_auth.py::test_login_invalid_password PASSED
-tests/test_auth.py::test_login_nonexistent_email PASSED
-tests/test_auth.py::test_protected_me_endpoint_with_valid_token PASSED
-tests/test_auth.py::test_protected_me_endpoint_without_token PASSED
-tests/test_auth.py::test_protected_me_endpoint_with_invalid_token PASSED
-tests/test_workspace_isolation.py::test_strict_workspace_isolation PASSED
+tests/test_auth.py (8 passed)
+tests/test_clients.py (8 passed)
+tests/test_projects.py (10 passed)
+tests/test_scope_items.py (11 passed)
+tests/test_workspace_isolation.py (1 passed)
+======================= 38 passed in 9.52s ========================
 ```
+
+---
+
+## 📡 API Endpoints Reference
+
+### Authentication (`/api/v1/auth`)
+- `POST /api/v1/auth/signup`: Register an agency workspace and admin user.
+- `POST /api/v1/auth/login`: Authenticate and receive a JWT token.
+- `GET /api/v1/auth/me`: Retrieve current user profile and workspace.
+
+### Client Management (`/api/v1/clients`)
+- `POST /api/v1/clients`: Create a new client in the agency workspace.
+- `GET /api/v1/clients`: List all clients in the workspace.
+- `GET /api/v1/clients/{id}`: Retrieve a single client by ID.
+- `PUT /api/v1/clients/{id}`: Update client details.
+- `DELETE /api/v1/clients/{id}`: Delete a client.
+
+### Project Management (`/api/v1/projects`)
+- `POST /api/v1/projects`: Create project linked to a workspace client (defaults to `Active`).
+- `GET /api/v1/projects`: List workspace projects (supports `?client_id=` and `?status=` filters).
+- `GET /api/v1/projects/{id}`: Retrieve a project by ID.
+- `PUT /api/v1/projects/{id}`: Update project name, status (`Active` or `Done`), or client.
+- `DELETE /api/v1/projects/{id}`: Delete a project.
+
+### Scope of Work Management (`/api/v1/scope-items`)
+- `POST /api/v1/scope-items`: Create a deliverable baseline with `included_description` and `not_included_description`.
+- `GET /api/v1/scope-items`: List all scope items (supports `?project_id=` filter).
+- `GET /api/v1/scope-items/{id}`: Retrieve a scope item by ID.
+- `PUT /api/v1/scope-items/{id}`: Update included/excluded descriptions or project.
+- `DELETE /api/v1/scope-items/{id}`: Delete a scope item.
 
 ---
 
@@ -331,8 +356,9 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 | Requirement | Implementation | Test Coverage |
 | :--- | :--- | :--- |
 | **UUID Primary Keys** | `GUID` custom TypeDecorator mapping to `postgresql.UUID(as_uuid=True)` | ✅ Tested in all entity tables |
-| **8 PostgreSQL Tables** | `workspaces`, `users`, `clients`, `projects`, `scope_items`, `tasks`, `requests`, `lessons` | ✅ Verified via Alembic DDL & migration |
-| **Workspace Isolation** | Every table has `workspace_id` indexed FK; API dependencies strictly isolate by JWT | ✅ `test_strict_workspace_isolation` |
+| **8 PostgreSQL Tables** | `workspaces`, `users`, `clients`, `projects`, `scope_items`, `tasks`, `requests`, `lessons` | ✅ Verified via Alembic DDL & migrations |
+| **Workspace Isolation** | Every table has `workspace_id` indexed FK; API dependencies strictly isolate by JWT | ✅ `test_strict_workspace_isolation` & cross-workspace tests |
 | **JWT + Bcrypt Auth** | Stateless Bearer token generation, 12 rounds bcrypt salting | ✅ `test_agency_signup_success`, `test_login_success` |
-| **Password Protection** | Passwords hashed; `UserRead` schemas strictly exclude passwords | ✅ `test_agency_signup_success`, `test_protected_me_endpoint_with_valid_token` |
-| **Invalid Password Handling** | Secure constant-time password check returning 401 | ✅ `test_login_invalid_password` |
+| **Client CRUD** | Full CRUD with input validation and workspace scoping | ✅ 8 tests in `test_clients.py` |
+| **Project CRUD** | Client-project workspace relationship enforcement & `Active`/`Done` status | ✅ 10 tests in `test_projects.py` |
+| **Scope of Work CRUD** | Dual Included/Not Included text fields, project validation & filtering | ✅ 11 tests in `test_scope_items.py` |

@@ -1,63 +1,114 @@
-import React from 'react'
+import React, { useState } from 'react'
+import ScopeOfWork from './pages/ScopeOfWork'
 
 function App() {
+  const [activeTab, setActiveTab] = useState('scope-of-work')
+  const [token, setToken] = useState(null)
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between p-6">
-      <header className="max-w-6xl mx-auto w-full flex items-center justify-between py-4 border-b border-slate-800">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/30">
-            SG
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between">
+      {/* Top Header */}
+      <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-4 w-full flex items-center justify-between py-3.5">
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('scope-of-work')}>
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/30">
+              SG
+            </div>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight text-white leading-tight">SCOPE GUARD</h1>
+              <p className="text-xs text-slate-400">AI-Powered Scope of Work & Task Management</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-white">SCOPE GUARD</h1>
-            <p className="text-xs text-slate-400">AI-Powered Scope & Task Control</p>
+
+          {/* Navigation Tabs */}
+          <nav className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+            <button
+              onClick={() => setActiveTab('scope-of-work')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition ${
+                activeTab === 'scope-of-work'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Scope of Work
+            </button>
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition ${
+                activeTab === 'overview'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              System Overview
+            </button>
+          </nav>
+
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              Day 6 Live
+            </span>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+              Multi-Tenant
+            </span>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            API v1 Ready
-          </span>
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-            Multi-Tenant
-          </span>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto w-full my-auto text-center py-16">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs text-slate-400 mb-6">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          Initial Setup & Database Architecture Initialized
-        </div>
-        <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white mb-4">
-          Defend Agency Margins Against <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Scope Creep</span>
-        </h2>
-        <p className="text-slate-400 text-lg max-w-2xl mx-auto mb-8">
-          Full multi-tenant architecture with isolated workspaces, JWT authentication,
-          PostgreSQL schema with 8 core entities, and AI-powered scope protection.
-        </p>
+      {/* Main View Area */}
+      <main className="flex-1">
+        {activeTab === 'scope-of-work' && (
+          <ScopeOfWork token={token} />
+        )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto text-left">
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-            <p className="text-xs text-slate-500 uppercase font-semibold">Backend</p>
-            <p className="text-sm font-semibold text-slate-200 mt-1">FastAPI + Python 3.12</p>
+        {activeTab === 'overview' && (
+          <div className="max-w-4xl mx-auto w-full text-center py-16 px-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs text-slate-400 mb-6">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Day 6: Scope of Work Management Activated
+            </div>
+            <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white mb-4">
+              Contractual SOW <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Baseline Engine</span>
+            </h2>
+            <p className="text-slate-400 text-lg max-w-2xl mx-auto mb-8">
+              Explicit Included deliverables and Not Included exclusions.
+              Every scope item is strictly isolated within the authenticated agency workspace.
+            </p>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto text-left">
+              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+                <p className="text-xs text-slate-500 uppercase font-semibold">Backend</p>
+                <p className="text-sm font-semibold text-slate-200 mt-1">FastAPI + Python 3.12</p>
+              </div>
+              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+                <p className="text-xs text-slate-500 uppercase font-semibold">Database</p>
+                <p className="text-sm font-semibold text-slate-200 mt-1">PostgreSQL (Supabase)</p>
+              </div>
+              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+                <p className="text-xs text-slate-500 uppercase font-semibold">SOW Isolation</p>
+                <p className="text-sm font-semibold text-slate-200 mt-1">Strict Workspace UUID</p>
+              </div>
+              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+                <p className="text-xs text-slate-500 uppercase font-semibold">Frontend</p>
+                <p className="text-sm font-semibold text-slate-200 mt-1">React 19 + Tailwind v4</p>
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <button
+                onClick={() => setActiveTab('scope-of-work')}
+                className="px-6 py-3 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-lg shadow-indigo-500/30 transition"
+              >
+                Open Scope of Work Page &rarr;
+              </button>
+            </div>
           </div>
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-            <p className="text-xs text-slate-500 uppercase font-semibold">Database</p>
-            <p className="text-sm font-semibold text-slate-200 mt-1">PostgreSQL (Supabase)</p>
-          </div>
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-            <p className="text-xs text-slate-500 uppercase font-semibold">Auth & Isolation</p>
-            <p className="text-sm font-semibold text-slate-200 mt-1">JWT + Strict Workspace</p>
-          </div>
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-            <p className="text-xs text-slate-500 uppercase font-semibold">Frontend</p>
-            <p className="text-sm font-semibold text-slate-200 mt-1">React + Vite + Tailwind</p>
-          </div>
-        </div>
+        )}
       </main>
 
-      <footer className="max-w-6xl mx-auto w-full py-4 text-center text-xs text-slate-500 border-t border-slate-800">
-        Scope Guard &copy; 2026 &bull; Production Architecture Ready
+      {/* Footer */}
+      <footer className="border-t border-slate-800 bg-slate-950 py-4 px-4 text-center text-xs text-slate-500">
+        Scope Guard &copy; 2026 &bull; Multi-Tenant Agency Scope Control
       </footer>
     </div>
   )

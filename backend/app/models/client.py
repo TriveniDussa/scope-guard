@@ -1,6 +1,6 @@
 import uuid
 from sqlalchemy import Column, ForeignKey, String, Text
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, synonym
 
 from app.core.database import Base, GUID
 from app.models.base import TimestampMixin
@@ -24,6 +24,9 @@ class Client(Base, TimestampMixin):
     contact_email = Column(String(255), nullable=True)
     contact_name = Column(String(255), nullable=True)
     company_details = Column(Text, nullable=True)
+
+    # Synonym allowing direct access via `client.email`
+    email = synonym("contact_email")
 
     # Relationships
     workspace = relationship("Workspace", back_populates="clients")

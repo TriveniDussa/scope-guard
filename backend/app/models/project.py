@@ -29,7 +29,7 @@ class Project(Base, TimestampMixin):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     budget = Column(Numeric(12, 2), nullable=True)
-    status = Column(String(50), nullable=False, default="draft")  # draft, in_progress, completed, on_hold
+    status = Column(String(50), nullable=False, default="Active")  # Active, Done
     start_date = Column(DateTime(timezone=True), nullable=True)
     end_date = Column(DateTime(timezone=True), nullable=True)
 

@@ -7,6 +7,14 @@ from app.schemas.user import (
     AgencySignupRequest,
     AgencySignupResponse,
 )
+from app.schemas.client import ClientBase, ClientCreate, ClientRead, ClientUpdate
+from app.schemas.project import (
+    ProjectBase,
+    ProjectCreate,
+    ProjectRead,
+    ProjectUpdate,
+    ProjectStatus,
+)
 
 __all__ = [
     "Token",
@@ -20,4 +28,13 @@ __all__ = [
     "UserRead",
     "AgencySignupRequest",
     "AgencySignupResponse",
+    "ClientBase",
+    "ClientCreate",
+    "ClientRead",
+    "ClientUpdate",
+    "ProjectBase",
+    "ProjectCreate",
+    "ProjectRead",
+    "ProjectUpdate",
+    "ProjectStatus",
 ]

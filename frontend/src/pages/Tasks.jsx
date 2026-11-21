@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
+import { API_BASE } from '../config/api'
+import { useAuth } from '../context/AuthContext'
 
-const API_BASE = 'http://localhost:8000/api/v1'
-
-export default function Tasks({ token }) {
+export default function Tasks() {
+  const { authFetch } = useAuth()
   const [projects, setProjects] = useState([])
   const [selectedProjectId, setSelectedProjectId] = useState('')
   const [scopeItems, setScopeItems] = useState([])
@@ -27,13 +28,14 @@ export default function Tasks({ token }) {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const headers = token ? { Authorization: `Bearer ${token}` } : {}
-        const res = await fetch(`${API_BASE}/projects`, { headers })
+        const res = await authFetch('/projects')
         if (res.ok) {
           const data = await res.json()
           setProjects(data)
-          if (data.length > 0 && !selectedProjectId) {
-            setSelectedProjectId(data[0].id)
+          if (data.length > 0) {
+            setSelectedProjectId((prev) => (prev && data.some((p) => p.id === prev) ? prev : data[0].id))
+          } else {
+            setSelectedProjectId('')
           }
         }
       } catch (err) {
@@ -41,7 +43,7 @@ export default function Tasks({ token }) {
       }
     }
     fetchProjects()
-  }, [token])
+  }, [])
 
   // 2. Fetch Scope Items whenever selectedProjectId changes
   useEffect(() => {
@@ -52,8 +54,7 @@ export default function Tasks({ token }) {
     }
     const fetchScopeItems = async () => {
       try {
-        const headers = token ? { Authorization: `Bearer ${token}` } : {}
-        const res = await fetch(`${API_BASE}/scope-items?project_id=${selectedProjectId}`, { headers })
+        const res = await authFetch(`/scope-items?project_id=${selectedProjectId}`)
         if (res.ok) {
           const data = await res.json()
           setScopeItems(data)
@@ -68,14 +69,13 @@ export default function Tasks({ token }) {
       }
     }
     fetchScopeItems()
-  }, [selectedProjectId, token])
+  }, [selectedProjectId])
 
   // 3. Fetch Tasks
   const fetchTasks = async () => {
     setLoading(true)
     try {
-      const headers = token ? { Authorization: `Bearer ${token}` } : {}
-      const res = await fetch(`${API_BASE}/tasks`, { headers })
+      const res = await authFetch('/tasks')
       if (res.ok) {
         const data = await res.json()
         setTasks(data)
@@ -89,7 +89,7 @@ export default function Tasks({ token }) {
 
   useEffect(() => {
     fetchTasks()
-  }, [token])
+  }, [])
 
   // Save Task (Create or Edit)
   const handleSaveTask = async (e) => {
@@ -109,11 +109,6 @@ export default function Tasks({ token }) {
 
     setLoading(true)
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      }
-
       if (editingId) {
         // PUT update
         const payload = {
@@ -123,13 +118,13 @@ export default function Tasks({ token }) {
           due_date: dueDate || null,
           status: taskStatus,
         }
-        const res = await fetch(`${API_BASE}/tasks/${editingId}`, {
+        const res = await authFetch(`/tasks/${editingId}`, {
           method: 'PUT',
-          headers,
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         })
         if (!res.ok) {
-          const errData = await res.json()
+          const errData = await res.json().catch(() => ({}))
           throw new Error(errData.detail || 'Failed to update task')
         }
         const updated = await res.json()
@@ -145,13 +140,13 @@ export default function Tasks({ token }) {
           due_date: dueDate || null,
           status: taskStatus,
         }
-        const res = await fetch(`${API_BASE}/tasks`, {
+        const res = await authFetch('/tasks', {
           method: 'POST',
-          headers,
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         })
         if (!res.ok) {
-          const errData = await res.json()
+          const errData = await res.json().catch(() => ({}))
           throw new Error(errData.detail || 'Failed to create task')
         }
         const created = await res.json()
@@ -171,17 +166,13 @@ export default function Tasks({ token }) {
   // Quick Status Change directly from Task List
   const handleQuickStatusChange = async (taskId, newStatus) => {
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      }
-      const res = await fetch(`${API_BASE}/tasks/${taskId}`, {
+      const res = await authFetch(`/tasks/${taskId}`, {
         method: 'PUT',
-        headers,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       })
       if (!res.ok) {
-        const errData = await res.json()
+        const errData = await res.json().catch(() => ({}))
         throw new Error(errData.detail || 'Failed to update status')
       }
       const updated = await res.json()
@@ -197,10 +188,8 @@ export default function Tasks({ token }) {
     if (!confirm('Are you sure you want to delete this task?')) return
     setLoading(true)
     try {
-      const headers = token ? { Authorization: `Bearer ${token}` } : {}
-      const res = await fetch(`${API_BASE}/tasks/${taskId}`, {
+      const res = await authFetch(`/tasks/${taskId}`, {
         method: 'DELETE',
-        headers,
       })
       if (!res.ok) {
         throw new Error('Failed to delete task')

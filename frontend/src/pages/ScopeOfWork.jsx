@@ -1,30 +1,13 @@
 import React, { useState, useEffect } from 'react'
+import { API_BASE } from '../config/api'
+import { useAuth } from '../context/AuthContext'
 
-const API_BASE = 'http://localhost:8000/api/v1'
-
-export default function ScopeOfWork({ token, currentWorkspace }) {
-  const [projects, setProjects] = useState([
-    { id: '11111111-1111-1111-1111-111111111111', name: 'Website Redesign', status: 'Active' },
-    { id: '22222222-2222-2222-2222-222222222222', name: 'Mobile App Refresh', status: 'Active' },
-  ])
-  const [selectedProjectId, setSelectedProjectId] = useState('11111111-1111-1111-1111-111111111111')
+export default function ScopeOfWork() {
+  const { authFetch, workspace } = useAuth()
+  const [projects, setProjects] = useState([])
+  const [selectedProjectId, setSelectedProjectId] = useState('')
   
-  const [scopeItems, setScopeItems] = useState([
-    {
-      id: 'item-demo-1',
-      project_id: '11111111-1111-1111-1111-111111111111',
-      included_description: 'Home page design, five pages, contact form.',
-      not_included_description: 'Hindi language version, payment gateway integration.',
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: 'item-demo-2',
-      project_id: '11111111-1111-1111-1111-111111111111',
-      included_description: 'Standard responsive layout for desktop and tablet.',
-      not_included_description: 'Custom native iOS / Android tablet wrapper app.',
-      created_at: new Date().toISOString(),
-    },
-  ])
+  const [scopeItems, setScopeItems] = useState([])
 
   const [includedText, setIncludedText] = useState('')
   const [notIncludedText, setNotIncludedText] = useState('')
@@ -32,49 +15,49 @@ export default function ScopeOfWork({ token, currentWorkspace }) {
   const [loading, setLoading] = useState(false)
   const [notification, setNotification] = useState(null)
 
-  // Fetch projects from backend if token is available
+  // Fetch projects from backend
   useEffect(() => {
-    if (!token) return
     const fetchProjects = async () => {
       try {
-        const res = await fetch(`${API_BASE}/projects`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        const res = await authFetch('/projects')
         if (res.ok) {
           const data = await res.json()
+          setProjects(data)
           if (data.length > 0) {
-            setProjects(data)
-            setSelectedProjectId(data[0].id)
+            setSelectedProjectId((prev) => (prev && data.some((p) => p.id === prev) ? prev : data[0].id))
+          } else {
+            setSelectedProjectId('')
           }
         }
       } catch (err) {
-        console.warn('API unavailable or offline, using demo data', err)
+        console.warn('API unavailable or offline', err)
       }
     }
     fetchProjects()
-  }, [token])
+  }, [])
 
   // Fetch scope items for selected project
   useEffect(() => {
-    if (!token || !selectedProjectId) return
+    if (!selectedProjectId) {
+      setScopeItems([])
+      return
+    }
     const fetchScopeItems = async () => {
       try {
         setLoading(true)
-        const res = await fetch(`${API_BASE}/scope-items?project_id=${selectedProjectId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
+        const res = await authFetch(`/scope-items?project_id=${selectedProjectId}`)
         if (res.ok) {
           const data = await res.json()
           setScopeItems(data)
         }
       } catch (err) {
-        console.warn('API error, keeping current state', err)
+        console.warn('Scope items fetch error', err)
       } finally {
         setLoading(false)
       }
     }
     fetchScopeItems()
-  }, [selectedProjectId, token])
+  }, [selectedProjectId])
 
   const showNotification = (msg, type = 'success') => {
     setNotification({ msg, type })
@@ -83,6 +66,10 @@ export default function ScopeOfWork({ token, currentWorkspace }) {
 
   const handleSave = async (e) => {
     e.preventDefault()
+    if (!selectedProjectId) {
+      showNotification('Please select or create a project first.', 'error')
+      return
+    }
     if (!includedText.trim() || !notIncludedText.trim()) {
       showNotification('Please fill in both Included and Not Included descriptions.', 'error')
       return
@@ -92,65 +79,43 @@ export default function ScopeOfWork({ token, currentWorkspace }) {
     try {
       if (editingId) {
         // Update existing item
-        if (token) {
-          const res = await fetch(`${API_BASE}/scope-items/${editingId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              included_description: includedText.trim(),
-              not_included_description: notIncludedText.trim(),
-            }),
-          })
-          if (!res.ok) throw new Error('Failed to update scope item')
-          const updated = await res.json()
-          setScopeItems((prev) => prev.map((item) => (item.id === editingId ? updated : item)))
-        } else {
-          setScopeItems((prev) =>
-            prev.map((item) =>
-              item.id === editingId
-                ? {
-                    ...item,
-                    included_description: includedText.trim(),
-                    not_included_description: notIncludedText.trim(),
-                    updated_at: new Date().toISOString(),
-                  }
-                : item
-            )
-          )
+        const res = await authFetch(`/scope-items/${editingId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            included_description: includedText.trim(),
+            not_included_description: notIncludedText.trim(),
+          }),
+        })
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.detail || 'Failed to update scope item')
         }
+        const updated = await res.json()
+        setScopeItems((prev) => prev.map((item) => (item.id === editingId ? updated : item)))
         showNotification('Scope item updated successfully!')
         setEditingId(null)
       } else {
         // Create new item
-        if (token) {
-          const res = await fetch(`${API_BASE}/scope-items`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              project_id: selectedProjectId,
-              included_description: includedText.trim(),
-              not_included_description: notIncludedText.trim(),
-            }),
-          })
-          if (!res.ok) throw new Error('Failed to create scope item')
-          const created = await res.json()
-          setScopeItems((prev) => [created, ...prev])
-        } else {
-          const newItem = {
-            id: `item-${Date.now()}`,
+        const res = await authFetch('/scope-items', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
             project_id: selectedProjectId,
             included_description: includedText.trim(),
             not_included_description: notIncludedText.trim(),
-            created_at: new Date().toISOString(),
-          }
-          setScopeItems((prev) => [newItem, ...prev])
+          }),
+        })
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.detail || 'Failed to create scope item')
         }
+        const created = await res.json()
+        setScopeItems((prev) => [created, ...prev])
         showNotification('Scope item added to project scope baseline!')
       }
 
@@ -180,12 +145,12 @@ export default function ScopeOfWork({ token, currentWorkspace }) {
     if (!confirm('Are you sure you want to delete this Scope of Work item?')) return
     setLoading(true)
     try {
-      if (token) {
-        const res = await fetch(`${API_BASE}/scope-items/${id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (!res.ok) throw new Error('Failed to delete scope item')
+      const res = await authFetch(`/scope-items/${id}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.detail || 'Failed to delete scope item')
       }
       setScopeItems((prev) => prev.filter((item) => item.id !== id))
       showNotification('Scope item deleted.')
@@ -250,14 +215,27 @@ export default function ScopeOfWork({ token, currentWorkspace }) {
             }}
             className="bg-slate-900 border border-slate-700 text-slate-100 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
           >
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.status})
-              </option>
-            ))}
+            {projects.length === 0 ? (
+              <option value="">No projects available</option>
+            ) : (
+              projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.status})
+                </option>
+              ))
+            )}
           </select>
         </div>
       </div>
+
+      {projects.length === 0 && (
+        <div className="mt-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm flex items-center gap-2">
+          <span>⚠️</span>
+          <span>
+            No projects found in this workspace. Please create a project under the <strong>Projects</strong> tab before defining scope deliverables.
+          </span>
+        </div>
+      )}
 
       {/* Scope Item Creation / Edit Form */}
       <form onSubmit={handleSave} className="mt-8 p-6 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-xl">

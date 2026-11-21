@@ -102,16 +102,26 @@ scope-guard/
 │       ├── test_lessons.py         # Day 9: Feedback, Lessons, Check Again & AI context tests
 │       └── test_workspace_isolation.py # Multi-tenant isolation verification across separate agencies
 └── frontend/                       # React + Vite Frontend Application
+    ├── .env.example                # Frontend environment configuration template (VITE_API_BASE_URL)
     ├── package.json                # Frontend package configuration (React 19, Tailwind CSS v4)
     ├── vite.config.js              # Vite configuration with @tailwindcss/vite plugin
     ├── index.html                  # HTML5 application shell
     └── src/
         ├── main.jsx                # React DOM root mounting
-        ├── App.jsx                 # Tabbed navigation shell
+        ├── App.jsx                 # Full agency application shell with AuthProvider and tab navigation
+        ├── config/
+        │   └── api.js              # Centralized API base URL config (VITE_API_BASE_URL)
+        ├── context/
+        │   └── AuthContext.jsx     # Reusable authentication context, JWT storage & authFetch
         ├── pages/
-        │   ├── RequestChecker.jsx  # Day 8–9: AI Request Checker with Gemini 1.5 Flash, Feedback & Check Again
-        │   ├── Tasks.jsx           # Day 7: Task management & deliverable linking
-        │   └── ScopeOfWork.jsx     # Day 6: Scope of Work Included/Not Included editor
+        │   ├── Dashboard.jsx       # Day 10: Overview KPI dashboard, launchpad & recent AI requests
+        │   ├── Clients.jsx         # Day 10: Complete Client CRUD management & search
+        │   ├── Projects.jsx        # Day 10: Complete Project CRUD with client linking & status filters
+        │   ├── ScopeOfWork.jsx     # Contractual Scope baseline (Included & Not Included deliverables)
+        │   ├── Tasks.jsx           # Task management strictly linked to scope deliverables
+        │   ├── RequestChecker.jsx  # AI Scope Creep Guardian with Gemini 1.5 Flash & Lessons
+        │   ├── Login.jsx           # Day 10: Agency sign-in screen with JWT authentication
+        │   └── Signup.jsx          # Day 10: Agency workspace onboarding and registration screen
         └── index.css               # Tailwind CSS v4 root stylesheet
 ```
 
@@ -378,6 +388,19 @@ tests/test_workspace_isolation.py (1 passed)
 - `GET /api/v1/lessons`: List all retrospective correction lessons for the workspace (supports `?project_id=` filter).
 - `GET /api/v1/lessons/{id}`: Retrieve an individual lesson by ID within the authenticated workspace.
 
+### Complete Browser Application & Authentication Integration (`frontend/`)
+- **Centralized API Base**: All frontend communication routes through `frontend/src/config/api.js` using `import.meta.env.VITE_API_BASE_URL` (default: `http://localhost:8000/api/v1`), configured via `frontend/.env.example`.
+- **Global AuthContext & Security**: Reusable React context handling agency signup, login, JWT storage in `localStorage`, session restoration via `/auth/me`, and an `authFetch` utility that injects Bearer tokens and automatically logs out on 401.
+- **Agency Signup Screen (`Signup.jsx`)**: Agency registration accepting agency name, administrator name, email, password, and confirmation with client-side validation and immediate workspace initialization.
+- **Agency Login Screen (`Login.jsx`)**: Direct authentication connecting to `/api/v1/auth/login` and `/api/v1/auth/me`.
+- **Client Management Page (`Clients.jsx`)**: Complete CRUD interface for agency clients with real-time search, inline editing, and deletion.
+- **Project Management Page (`Projects.jsx`)**: Project lifecycle management with client association dropdowns, status toggling (`Active` / `Done`), and filtering.
+- **Scope of Work Baseline (`ScopeOfWork.jsx`)**: Contractual baseline editor enforcing dual Included deliverables and Not Included exclusions per project.
+- **Task Management Page (`Tasks.jsx`)**: Sprint task tracker strictly linked to verified scope deliverables to eliminate phantom tasks.
+- **AI Request Checker Page (`RequestChecker.jsx`)**: AI scope evaluation using Gemini 1.5 Flash with agency human-in-the-loop feedback (`Right`/`Wrong`) and immutable `Check Again` comparative analysis.
+- **Agency Overview Dashboard (`Dashboard.jsx`)**: Live KPI metrics (Clients, Projects, Scope Items, Tasks, AI Requests, Lessons), quick action launchpad, and recent AI evaluations.
+- **Application Shell (`App.jsx`)**: Clean navigation header, workspace and user profile badges, mobile drawer, and logout controls.
+
 ---
 
 ### Step 3: Start Backend API Server
@@ -398,10 +421,17 @@ python -m uvicorn app.main:app --reload --port 8000
 In a separate terminal, start the React + Vite development server:
 ```bash
 cd frontend
+cp .env.example .env    # Configure VITE_API_BASE_URL if needed
 npm install
 npm run dev
 ```
 Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+To verify a production build:
+```bash
+cd frontend
+npm run build
+```
 
 ---
 
@@ -419,3 +449,5 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 | **Task Management CRUD** | Scope-item deliverable linking, project relationship check, `To do`/`Doing`/`Done` status | ✅ 12 tests in `test_tasks.py` |
 | **AI Request Checker** | Modular Gemini 1.5 Flash evaluation, exact classification (`In scope`, `Out of scope`, `Not sure`), justification & polite client reply draft | ✅ 12 tests in `test_requests.py` |
 | **Continuous Learning & Check Again** | Human-in-the-loop Right/Wrong feedback, lessons knowledge base persistence, Hierarchy of Truth prompt context, immutable Check Again comparison | ✅ 15 tests in `test_lessons.py` (77 total passing tests) |
+| **Complete Browser Application & Auth Integration** | React 19 + Tailwind v4 SPA with AuthContext, full CRUD for Clients & Projects, Scope, Tasks, AI Checker, Overview Dashboard & zero mock data | ✅ Production build verified (`npm run build`) & 77 passing backend tests |
+

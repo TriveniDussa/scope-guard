@@ -1,147 +1,176 @@
 import React, { useState } from 'react'
+import { AuthProvider, useAuth } from './context/AuthContext'
+import Login from './pages/Login'
+import Signup from './pages/Signup'
+import Clients from './pages/Clients'
+import Projects from './pages/Projects'
 import ScopeOfWork from './pages/ScopeOfWork'
 import Tasks from './pages/Tasks'
 import RequestChecker from './pages/RequestChecker'
+import Dashboard from './pages/Dashboard'
 
-function App() {
-  const [activeTab, setActiveTab] = useState('request-checker')
-  const [token, setToken] = useState(null)
+function AppContent() {
+  const { isAuthenticated, user, workspace, logout, loading } = useAuth()
+  const [activeTab, setActiveTab] = useState('overview')
+  const [showSignup, setShowSignup] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300">
+        <div className="w-12 h-12 rounded-2xl bg-indigo-600 animate-pulse flex items-center justify-center font-bold text-white shadow-xl shadow-indigo-500/30 text-xl mb-4">
+          SG
+        </div>
+        <div className="text-sm font-medium animate-pulse text-slate-400">Restoring Scope Guard session...</div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return showSignup ? (
+      <Signup onSwitchToLogin={() => setShowSignup(false)} />
+    ) : (
+      <Login onSwitchToSignup={() => setShowSignup(true)} />
+    )
+  }
+
+  const navItems = [
+    { id: 'overview', label: 'Overview', icon: '📊' },
+    { id: 'clients', label: 'Clients', icon: '👥' },
+    { id: 'projects', label: 'Projects', icon: '📁' },
+    { id: 'scope-of-work', label: 'Scope of Work', icon: '📜' },
+    { id: 'tasks', label: 'Tasks', icon: '✅' },
+    { id: 'request-checker', label: 'AI Request Checker', icon: '🛡️' },
+  ]
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between">
       {/* Top Header */}
-      <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 w-full flex items-center justify-between py-3.5">
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('request-checker')}>
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/30">
+      <header className="border-b border-slate-800 bg-slate-950/90 backdrop-blur sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 w-full flex items-center justify-between py-3">
+          {/* Logo & Agency Branding */}
+          <div
+            className="flex items-center space-x-3 cursor-pointer select-none"
+            onClick={() => setActiveTab('overview')}
+          >
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center font-extrabold text-white shadow-lg shadow-indigo-500/30">
               SG
             </div>
             <div>
-              <h1 className="text-lg font-bold tracking-tight text-white leading-tight">SCOPE GUARD</h1>
-              <p className="text-xs text-slate-400">AI-Powered Scope of Work & Task Management</p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base font-extrabold tracking-tight text-white leading-tight">SCOPE GUARD</h1>
+                <span className="hidden sm:inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                  {workspace?.name || 'Agency Workspace'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">AI-Powered Scope of Work & Task Management</p>
             </div>
           </div>
 
-          {/* Navigation Tabs */}
-          <nav className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
-            <button
-              onClick={() => setActiveTab('request-checker')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition ${
-                activeTab === 'request-checker'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              AI Request Checker
-            </button>
-            <button
-              onClick={() => setActiveTab('tasks')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition ${
-                activeTab === 'tasks'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Tasks
-            </button>
-            <button
-              onClick={() => setActiveTab('scope-of-work')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition ${
-                activeTab === 'scope-of-work'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Scope of Work
-            </button>
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition ${
-                activeTab === 'overview'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              System Overview
-            </button>
+          {/* Desktop Navigation Tabs */}
+          <nav className="hidden lg:flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition ${
+                  activeTab === item.id
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                }`}
+              >
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            ))}
           </nav>
 
-          <div className="hidden sm:flex items-center gap-2">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Day 9 Live
-            </span>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-              Learning & Check Again
-            </span>
+          {/* User Profile & Logout */}
+          <div className="flex items-center gap-3">
+            <div className="hidden sm:flex flex-col text-right">
+              <span className="text-xs font-bold text-slate-200 leading-tight">
+                {user?.full_name || 'Agency Member'}
+              </span>
+              <span className="text-[10px] text-slate-400 truncate max-w-[140px]">
+                {user?.email}
+              </span>
+            </div>
+
+            <button
+              onClick={logout}
+              title="Sign Out"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition flex items-center gap-1.5"
+            >
+              <span>Logout</span>
+              <span className="text-rose-400">&rarr;</span>
+            </button>
+
+            {/* Mobile Hamburger Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200"
+            >
+              {mobileMenuOpen ? '✕' : '☰'}
+            </button>
           </div>
         </div>
+
+        {/* Mobile Navigation Drawer */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden border-t border-slate-800 bg-slate-950 px-4 py-3 space-y-1">
+            <div className="px-2 py-1 mb-2 text-xs font-medium text-slate-400">
+              Workspace: <strong className="text-indigo-400">{workspace?.name}</strong>
+            </div>
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActiveTab(item.id)
+                  setMobileMenuOpen(false)
+                }}
+                className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition ${
+                  activeTab === item.id
+                    ? 'bg-indigo-600 text-white'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                }`}
+              >
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       {/* Main View Area */}
-      <main className="flex-1">
-        {activeTab === 'request-checker' && <RequestChecker token={token} />}
-
-        {activeTab === 'tasks' && <Tasks token={token} />}
-
-        {activeTab === 'scope-of-work' && <ScopeOfWork token={token} />}
-
-        {activeTab === 'overview' && (
-          <div className="max-w-4xl mx-auto w-full text-center py-16 px-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs text-slate-400 mb-6">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Day 7: Task Management & Scope Linking Active
-            </div>
-            <h2 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-white mb-4">
-              Scope-Driven <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Sprint Execution</span>
-            </h2>
-            <p className="text-slate-400 text-lg max-w-2xl mx-auto mb-8">
-              Every task is strictly attached to an approved deliverable scope item.
-              Prevent phantom tasks and unauthorized work that burns agency margins.
-            </p>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto text-left">
-              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-                <p className="text-xs text-slate-500 uppercase font-semibold">Backend</p>
-                <p className="text-sm font-semibold text-slate-200 mt-1">FastAPI + Python 3.12</p>
-              </div>
-              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-                <p className="text-xs text-slate-500 uppercase font-semibold">Database</p>
-                <p className="text-sm font-semibold text-slate-200 mt-1">PostgreSQL (Supabase)</p>
-              </div>
-              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-                <p className="text-xs text-slate-500 uppercase font-semibold">Task Linking</p>
-                <p className="text-sm font-semibold text-slate-200 mt-1">Scope Item Enforced</p>
-              </div>
-              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800">
-                <p className="text-xs text-slate-500 uppercase font-semibold">Frontend</p>
-                <p className="text-sm font-semibold text-slate-200 mt-1">React 19 + Tailwind v4</p>
-              </div>
-            </div>
-
-            <div className="mt-8 flex items-center justify-center gap-4">
-              <button
-                onClick={() => setActiveTab('tasks')}
-                className="px-6 py-3 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-lg shadow-indigo-500/30 transition"
-              >
-                Open Tasks Page &rarr;
-              </button>
-              <button
-                onClick={() => setActiveTab('scope-of-work')}
-                className="px-6 py-3 text-sm font-semibold text-slate-200 bg-slate-800 hover:bg-slate-700 rounded-xl border border-slate-700 transition"
-              >
-                View Scope of Work
-              </button>
-            </div>
-          </div>
-        )}
+      <main className="flex-1 pb-12">
+        {activeTab === 'overview' && <Dashboard onNavigate={(tab) => setActiveTab(tab)} />}
+        {activeTab === 'clients' && <Clients />}
+        {activeTab === 'projects' && <Projects />}
+        {activeTab === 'scope-of-work' && <ScopeOfWork />}
+        {activeTab === 'tasks' && <Tasks />}
+        {activeTab === 'request-checker' && <RequestChecker />}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800 bg-slate-950 py-4 px-4 text-center text-xs text-slate-500">
-        Scope Guard &copy; 2026 &bull; Multi-Tenant Agency Scope Control
+      <footer className="border-t border-slate-800 bg-slate-950 py-4 px-4 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between max-w-7xl mx-auto w-full gap-2">
+        <div>SCOPE GUARD &copy; 2026 &bull; Multi-Tenant Agency Scope Control</div>
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            Workspace Isolated: {workspace?.name || 'Default'}
+          </span>
+          <span className="text-[11px] text-slate-400">Day 10: Complete Browser Application</span>
+        </div>
       </footer>
     </div>
   )
 }
 
-export default App
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  )
+}

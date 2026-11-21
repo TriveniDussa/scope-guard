@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react'
+import { API_BASE } from '../config/api'
+import { useAuth } from '../context/AuthContext'
 
-const API_BASE = 'http://localhost:8000/api/v1'
-
-export default function RequestChecker({ token }) {
-  const [projects, setProjects] = useState([
-    { id: '11111111-1111-1111-1111-111111111111', name: 'Website Redesign', status: 'Active' },
-    { id: '22222222-2222-2222-2222-222222222222', name: 'Mobile App Refresh', status: 'Active' },
-  ])
-  const [selectedProjectId, setSelectedProjectId] = useState('11111111-1111-1111-1111-111111111111')
+export default function RequestChecker() {
+  const { authFetch } = useAuth()
+  const [projects, setProjects] = useState([])
+  const [selectedProjectId, setSelectedProjectId] = useState('')
   const [clientRequestText, setClientRequestText] = useState('')
   const [evaluating, setEvaluating] = useState(false)
   const [evaluationResult, setEvaluationResult] = useState(null)
@@ -38,15 +36,15 @@ export default function RequestChecker({ token }) {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const headers = token ? { Authorization: `Bearer ${token}` } : {}
-        const res = await fetch(`${API_BASE}/projects`, { headers })
+        const res = await authFetch('/projects')
         if (res.ok) {
           const data = await res.json()
           if (data && data.length > 0) {
             setProjects(data)
-            if (!selectedProjectId) {
-              setSelectedProjectId(data[0].id)
-            }
+            setSelectedProjectId((prev) => (prev && data.some((p) => p.id === prev) ? prev : data[0].id))
+          } else {
+            setProjects([])
+            setSelectedProjectId('')
           }
         }
       } catch (err) {
@@ -54,18 +52,17 @@ export default function RequestChecker({ token }) {
       }
     }
     fetchProjects()
-  }, [token])
+  }, [])
 
   // 2. Fetch Request History from backend
   const fetchHistory = async () => {
     setLoadingHistory(true)
     try {
-      const headers = token ? { Authorization: `Bearer ${token}` } : {}
       const url =
         filterProjectId !== 'All'
-          ? `${API_BASE}/requests?project_id=${filterProjectId}`
-          : `${API_BASE}/requests`
-      const res = await fetch(url, { headers })
+          ? `/requests?project_id=${filterProjectId}`
+          : '/requests'
+      const res = await authFetch(url)
       if (res.ok) {
         const data = await res.json()
         setHistory(data)
@@ -80,12 +77,11 @@ export default function RequestChecker({ token }) {
   // 3. Fetch Lessons Learned from backend
   const fetchLessons = async () => {
     try {
-      const headers = token ? { Authorization: `Bearer ${token}` } : {}
       const url =
         filterProjectId !== 'All'
-          ? `${API_BASE}/lessons?project_id=${filterProjectId}`
-          : `${API_BASE}/lessons`
-      const res = await fetch(url, { headers })
+          ? `/lessons?project_id=${filterProjectId}`
+          : '/lessons'
+      const res = await authFetch(url)
       if (res.ok) {
         const data = await res.json()
         setLessons(data)
@@ -98,7 +94,7 @@ export default function RequestChecker({ token }) {
   useEffect(() => {
     fetchHistory()
     fetchLessons()
-  }, [token, filterProjectId])
+  }, [filterProjectId])
 
   // 4. Handle Submit Request Check
   const handleCheckRequest = async (e) => {
@@ -118,13 +114,11 @@ export default function RequestChecker({ token }) {
     setFeedbackMode(null)
 
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      }
-      const res = await fetch(`${API_BASE}/requests/check`, {
+      const res = await authFetch('/requests/check', {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           project_id: selectedProjectId,
           client_request: clientRequestText.trim(),
@@ -154,13 +148,11 @@ export default function RequestChecker({ token }) {
   const handleRightFeedback = async (requestId) => {
     setSubmittingFeedback(true)
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      }
-      const res = await fetch(`${API_BASE}/requests/${requestId}/feedback`, {
+      const res = await authFetch(`/requests/${requestId}/feedback`, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ feedback: 'Right' }),
       })
 
@@ -190,13 +182,11 @@ export default function RequestChecker({ token }) {
 
     setSubmittingFeedback(true)
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      }
-      const res = await fetch(`${API_BASE}/requests/${requestId}/feedback`, {
+      const res = await authFetch(`/requests/${requestId}/feedback`, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           feedback: 'Wrong',
           correct_result: correctResult,
@@ -231,13 +221,11 @@ export default function RequestChecker({ token }) {
     if (!requestId) return
     setCheckingAgain(true)
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      }
-      const res = await fetch(`${API_BASE}/requests/${requestId}/check-again`, {
+      const res = await authFetch(`/requests/${requestId}/check-again`, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+        },
       })
 
       if (res.ok) {
@@ -352,11 +340,15 @@ export default function RequestChecker({ token }) {
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition"
                   required
                 >
-                  {projects.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.status || 'Active'})
-                    </option>
-                  ))}
+                  {projects.length === 0 ? (
+                    <option value="">No projects available</option>
+                  ) : (
+                    projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.status || 'Active'})
+                      </option>
+                    ))
+                  )}
                 </select>
                 <p className="text-[11px] text-slate-500 mt-1">
                   AI reads only this project's scope items and saved correction lessons.

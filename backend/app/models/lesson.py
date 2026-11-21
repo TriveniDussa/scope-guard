@@ -8,8 +8,9 @@ from app.models.base import TimestampMixin
 
 class Lesson(Base, TimestampMixin):
     """
-    Retrospective Lesson Learned entity.
-    Captures scope insights, estimation variances, and risk mitigations for the agency.
+    Retrospective Agency Correction Lesson Learned entity.
+    Stores human corrections to AI classifications on client requests for a specific project.
+    Used by the AI Request Checker as prompt guidance to improve future and re-evaluated predictions.
     """
     __tablename__ = "lessons"
 
@@ -22,22 +23,27 @@ class Lesson(Base, TimestampMixin):
     )
     project_id = Column(
         GUID,
-        ForeignKey("projects.id", ondelete="SET NULL"),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    request_id = Column(
+        GUID,
+        ForeignKey("requests.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
-    title = Column(String(255), nullable=False)
-    category = Column(
-        String(100),
-        nullable=False,
-        default="general",
-    )  # estimation, client_communication, technical_debt, contract_terms
-    content = Column(Text, nullable=False)
-    action_items = Column(Text, nullable=True)
+    ai_answer = Column(String(50), nullable=False)
+    correct_result = Column(String(50), nullable=False)  # "In scope" or "Out of scope"
+    correction_reason = Column(Text, nullable=False)
 
     # Relationships
     workspace = relationship("Workspace", back_populates="lessons")
     project = relationship("Project", back_populates="lessons")
+    request = relationship("Request", back_populates="lessons")
 
     def __repr__(self):
-        return f"<Lesson(id={self.id}, title='{self.title}', category='{self.category}')>"
+        return (
+            f"<Lesson(id={self.id}, project_id={self.project_id}, "
+            f"ai_answer='{self.ai_answer}', correct_result='{self.correct_result}')>"
+        )

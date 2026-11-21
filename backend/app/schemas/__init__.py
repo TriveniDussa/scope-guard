@@ -31,7 +31,12 @@ from app.schemas.task import (
 from app.schemas.request import (
     RequestCheckIn,
     RequestRead,
+    RequestFeedbackIn,
+    CheckAgainResponse,
+    FeedbackEnum,
+    CorrectResultEnum,
 )
+from app.schemas.lesson import LessonRead
 
 __all__ = [
     "Token",
@@ -65,4 +70,9 @@ __all__ = [
     "TaskStatus",
     "RequestCheckIn",
     "RequestRead",
+    "RequestFeedbackIn",
+    "CheckAgainResponse",
+    "FeedbackEnum",
+    "CorrectResultEnum",
+    "LessonRead",
 ]

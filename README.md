@@ -38,7 +38,8 @@ scope-guard/
 │   │       ├── 001_initial_schema.py        # Initial migration creating all 8 PostgreSQL tables
 │   │       ├── 002_update_scope_items_table.py # Day 6: included/not_included descriptions
 │   │       ├── 003_update_tasks_table.py    # Day 7: tasks status and deliverable linking
-│   │       └── 004_update_requests_table.py # Day 8: requests schema for AI Request Checker
+│   │       ├── 004_update_requests_table.py # Day 8: requests schema for AI Request Checker
+│   │       └── 005_update_lessons_and_requests.py # Day 9: lessons schema, feedback & check-again linking
 │   ├── app/
 │   │   ├── __init__.py
 │   │   ├── main.py                 # FastAPI initialization, CORS middleware, healthcheck routes
@@ -57,8 +58,8 @@ scope-guard/
 │   │   │   ├── project.py          # 4. projects: Client engagements / contracts
 │   │   │   ├── scope_item.py       # 5. scope_items: Contractual baseline deliverables
 │   │   │   ├── task.py             # 6. tasks: Daily actionable work items
-│   │   │   ├── request.py          # 7. requests: Client change requests analyzed by AI
-│   │   │   └── lesson.py           # 8. lessons: Agency retrospective insights & learning
+│   │   │   ├── request.py          # 7. requests: Client change requests analyzed by AI, feedback & re-evaluations
+│   │   │   └── lesson.py           # 8. lessons: Agency retrospective correction lessons
 │   │   ├── schemas/                # Pydantic validation & serialization schemas
 │   │   │   ├── __init__.py
 │   │   │   ├── auth.py             # Token, TokenPayload, LoginRequest
@@ -67,13 +68,14 @@ scope-guard/
 │   │   │   ├── project.py          # ProjectCreate, ProjectRead, ProjectUpdate
 │   │   │   ├── scope_item.py       # ScopeItemCreate, ScopeItemRead, ScopeItemUpdate
 │   │   │   ├── task.py             # TaskCreate, TaskRead, TaskUpdate
-│   │   │   ├── request.py          # RequestCheckIn, RequestRead
+│   │   │   ├── request.py          # RequestCheckIn, RequestRead, RequestFeedbackIn, CheckAgainResponse
+│   │   │   ├── lesson.py           # LessonRead
 │   │   │   └── workspace.py        # WorkspaceRead, WorkspaceCreate
 │   │   ├── services/               # Modular service layer
 │   │   │   └── ai/                 # Modular AI provider architecture
 │   │   │       ├── __init__.py
 │   │   │       ├── base.py         # BaseAIService abstract interface & Pydantic models
-│   │   │       ├── prompt.py       # Deterministic system instructions & prompt builder
+│   │   │       ├── prompt.py       # Deterministic system instructions, prompt builder & Hierarchy of Truth
 │   │   │       ├── gemini.py       # Google Gemini 1.5 Flash REST client with structured JSON
 │   │   │       └── factory.py      # Provider factory dependency
 │   │   └── api/
@@ -86,7 +88,8 @@ scope-guard/
 │   │               ├── projects.py # Project CRUD
 │   │               ├── scope_items.py # Scope of Work CRUD
 │   │               ├── tasks.py    # Task CRUD & deliverable linking
-│   │               └── requests.py # AI Request Checker endpoints
+│   │               ├── requests.py # AI Request Checker, feedback & Check Again endpoints
+│   │               └── lessons.py  # Lessons learned retrieval endpoints
 │   └── tests/
 │       ├── __init__.py
 │       ├── conftest.py             # Pytest fixtures, test database engine, FastAPI TestClient
@@ -95,7 +98,8 @@ scope-guard/
 │       ├── test_projects.py        # Project CRUD, status transitions & isolation tests
 │       ├── test_scope_items.py     # Scope CRUD & dual description tests
 │       ├── test_tasks.py           # Task CRUD & deliverable validation tests
-│       ├── test_requests.py        # AI Request Checker, mocked Gemini, & classification tests
+│       ├── test_requests.py        # AI Request Checker & classification tests
+│       ├── test_lessons.py         # Day 9: Feedback, Lessons, Check Again & AI context tests
 │       └── test_workspace_isolation.py # Multi-tenant isolation verification across separate agencies
 └── frontend/                       # React + Vite Frontend Application
     ├── package.json                # Frontend package configuration (React 19, Tailwind CSS v4)
@@ -105,7 +109,7 @@ scope-guard/
         ├── main.jsx                # React DOM root mounting
         ├── App.jsx                 # Tabbed navigation shell
         ├── pages/
-        │   ├── RequestChecker.jsx  # Day 8: AI Request Checker with Gemini 1.5 Flash
+        │   ├── RequestChecker.jsx  # Day 8–9: AI Request Checker with Gemini 1.5 Flash, Feedback & Check Again
         │   ├── Tasks.jsx           # Day 7: Task management & deliverable linking
         │   └── ScopeOfWork.jsx     # Day 6: Scope of Work Included/Not Included editor
         └── index.css               # Tailwind CSS v4 root stylesheet
@@ -206,21 +210,23 @@ erDiagram
 - `workspace_id` (UUID, FK -> `workspaces.id` ON DELETE CASCADE, NOT NULL, INDEX): Tenant isolation link.
 - `project_id` (UUID, FK -> `projects.id` ON DELETE CASCADE, NOT NULL, INDEX): Target project.
 - `user_id` (UUID, FK -> `users.id` ON DELETE SET NULL, NULLABLE, INDEX): Submitting agency user.
+- `parent_request_id` (UUID, FK -> `requests.id` ON DELETE SET NULL, NULLABLE, INDEX): Link to parent request when re-evaluating with "Check Again".
 - `client_request` (TEXT, NOT NULL): The client's requested deliverable or modification.
 - `classification` (VARCHAR(50), DEFAULT `'Not sure'`, NOT NULL): Exact AI outcome (`In scope`, `Out of scope`, `Not sure`).
-- `reason` (TEXT, NOT NULL): Short justification based strictly on the project's agreed scope baseline.
+- `reason` (TEXT, NOT NULL): Short justification based strictly on the project's agreed scope baseline and lessons.
 - `client_reply` (TEXT, NOT NULL): Courteous and professional communication draft for the client.
+- `feedback` (VARCHAR(20), NULLABLE): Agency evaluation feedback (`Right` or `Wrong`).
 - `created_at` (TIMESTAMP WITH TIME ZONE, DEFAULT `now()`, NOT NULL).
 - `updated_at` (TIMESTAMP WITH TIME ZONE, DEFAULT `now()`, NOT NULL).
 
-#### 8. `lessons` (Agency Knowledge & Retrospectives)
+#### 8. `lessons` (Agency Continuous Learning & Corrections)
 - `id` (UUID, Primary Key, default `uuid4`): Lesson identifier.
 - `workspace_id` (UUID, FK -> `workspaces.id` ON DELETE CASCADE, NOT NULL, INDEX): Tenant isolation link.
-- `project_id` (UUID, FK -> `projects.id` ON DELETE SET NULL, NULLABLE, INDEX): Project origin (if any).
-- `title` (VARCHAR(255), NOT NULL): Lesson headline (e.g. "Third-party payment gateway delay").
-- `category` (VARCHAR(100), DEFAULT `'general'`, NOT NULL): `estimation`, `client_communication`, `technical_debt`, `contract_terms`.
-- `content` (TEXT, NOT NULL): What went wrong or what was learned.
-- `action_items` (TEXT, NULLABLE): Policy changes to prevent similar scope creep in future SOWs.
+- `project_id` (UUID, FK -> `projects.id` ON DELETE CASCADE, NOT NULL, INDEX): Project origin.
+- `request_id` (UUID, FK -> `requests.id` ON DELETE SET NULL, NULLABLE, INDEX): Originating evaluated request.
+- `ai_answer` (VARCHAR(50), NOT NULL): Original AI classification on the request.
+- `correct_result` (VARCHAR(50), NOT NULL): Human agency correction (`In scope` or `Out of scope`).
+- `correction_reason` (TEXT, NOT NULL): Meaningful one-line explanation justifying the correction.
 - `created_at` (TIMESTAMP WITH TIME ZONE, DEFAULT `now()`, NOT NULL).
 - `updated_at` (TIMESTAMP WITH TIME ZONE, DEFAULT `now()`, NOT NULL).
 
@@ -315,12 +321,13 @@ All test cases will run and pass:
 ```text
 tests/test_auth.py (8 passed)
 tests/test_clients.py (8 passed)
+tests/test_lessons.py (15 passed)
 tests/test_projects.py (10 passed)
 tests/test_requests.py (12 passed)
 tests/test_scope_items.py (11 passed)
 tests/test_tasks.py (12 passed)
 tests/test_workspace_isolation.py (1 passed)
-======================= 62 passed in 20.40s ========================
+======================= 77 passed in 25.75s ========================
 ```
 
 ---
@@ -360,10 +367,16 @@ tests/test_workspace_isolation.py (1 passed)
 - `PUT /api/v1/tasks/{id}`: Update task title, due date, status (`To do`, `Doing`, `Done`), or linked project/scope item.
 - `DELETE /api/v1/tasks/{id}`: Delete a task within the workspace.
 
-### AI Request Checker (`/api/v1/requests`)
-- `POST /api/v1/requests/check`: Evaluate a client request against the selected project's agreed scope using Google Gemini 1.5 Flash. Returns `classification` (`In scope`, `Out of scope`, `Not sure`), `reason`, and `client_reply`.
+### AI Request Checker & Learning (`/api/v1/requests`)
+- `POST /api/v1/requests/check`: Evaluate a client request against the selected project's agreed scope deliverables and past lessons using Google Gemini 1.5 Flash. Returns `classification` (`In scope`, `Out of scope`, `Not sure`), `reason`, and `client_reply`.
+- `POST /api/v1/requests/{id}/feedback`: Submit agency rating (`Right` or `Wrong`). If `Wrong`, requires `correct_result` (`In scope` or `Out of scope`) and `correction_reason`, creating a permanent project lesson.
+- `POST /api/v1/requests/{id}/check-again`: Re-evaluates an existing request with the latest project scope and learned lessons. Preserves the original evaluation and records a linked new evaluation, returning both `old_answer` and `new_answer`.
 - `GET /api/v1/requests`: List request evaluation history in the workspace (supports `?project_id=` filter).
 - `GET /api/v1/requests/{id}`: Retrieve a specific evaluated request by ID.
+
+### Lessons Learned Knowledge Base (`/api/v1/lessons`)
+- `GET /api/v1/lessons`: List all retrospective correction lessons for the workspace (supports `?project_id=` filter).
+- `GET /api/v1/lessons/{id}`: Retrieve an individual lesson by ID within the authenticated workspace.
 
 ---
 
@@ -404,4 +417,5 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 | **Project CRUD** | Client-project workspace relationship enforcement & `Active`/`Done` status | ✅ 10 tests in `test_projects.py` |
 | **Scope of Work CRUD** | Dual Included/Not Included text fields, project validation & filtering | ✅ 11 tests in `test_scope_items.py` |
 | **Task Management CRUD** | Scope-item deliverable linking, project relationship check, `To do`/`Doing`/`Done` status | ✅ 12 tests in `test_tasks.py` |
-| **AI Request Checker** | Modular Gemini 1.5 Flash evaluation, exact classification (`In scope`, `Out of scope`, `Not sure`), justification & polite client reply draft | ✅ 12 tests in `test_requests.py` (62 total passing tests) |
+| **AI Request Checker** | Modular Gemini 1.5 Flash evaluation, exact classification (`In scope`, `Out of scope`, `Not sure`), justification & polite client reply draft | ✅ 12 tests in `test_requests.py` |
+| **Continuous Learning & Check Again** | Human-in-the-loop Right/Wrong feedback, lessons knowledge base persistence, Hierarchy of Truth prompt context, immutable Check Again comparison | ✅ 15 tests in `test_lessons.py` (77 total passing tests) |

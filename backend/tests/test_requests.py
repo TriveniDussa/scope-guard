@@ -28,11 +28,17 @@ class MockAIService(BaseAIService):
         self.last_client_request = None
         self.last_scope_items = None
 
-    def classify_request(self, client_request: str, scope_items: list) -> AIClassificationResult:
+    def classify_request(
+        self,
+        client_request: str,
+        scope_items: list,
+        lessons: list = None,
+    ) -> AIClassificationResult:
         if self.should_raise:
             raise AIServiceError("Simulated provider quota limit exceeded")
         self.last_client_request = client_request
         self.last_scope_items = scope_items
+        self.last_lessons = lessons
         return AIClassificationResult(
             classification=ClassificationEnum(self.classification),
             reason=self.reason,

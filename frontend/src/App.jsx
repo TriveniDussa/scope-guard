@@ -68,10 +68,10 @@ function App() {
 
           <div className="hidden sm:flex items-center gap-2">
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Day 8 Live
+              Day 9 Live
             </span>
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-              AI Checker
+              Learning & Check Again
             </span>
           </div>
         </div>

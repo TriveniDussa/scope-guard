@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any, List
+from typing import Any, List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -12,7 +12,7 @@ class ClassificationEnum(str, Enum):
 
 class AIClassificationResult(BaseModel):
     classification: ClassificationEnum = Field(..., description="Exact classification: In scope, Out of scope, or Not sure")
-    reason: str = Field(..., description="Concise explanation justifying the classification based solely on agreed scope")
+    reason: str = Field(..., description="Concise explanation justifying the classification based on agreed scope and lessons")
     client_reply: str = Field(..., description="Courteous and professional response draft to send to the client")
 
 
@@ -33,9 +33,10 @@ class BaseAIService(ABC):
         self,
         client_request: str,
         scope_items: List[Any],
+        lessons: Optional[List[Any]] = None,
     ) -> AIClassificationResult:
         """
         Classifies whether client_request is 'In scope', 'Out of scope', or 'Not sure'
-        based strictly on the provided scope_items.
+        based on the provided scope_items and relevant project lessons.
         """
         pass

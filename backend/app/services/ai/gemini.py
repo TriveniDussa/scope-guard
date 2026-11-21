@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, List
+from typing import Any, List, Optional
 import httpx
 from pydantic import ValidationError
 
@@ -30,11 +30,12 @@ class GeminiAIService(BaseAIService):
         self,
         client_request: str,
         scope_items: List[Any],
+        lessons: Optional[List[Any]] = None,
     ) -> AIClassificationResult:
         if not self.api_key or self.api_key.strip() in ("", "your_gemini_api_key_here"):
             raise AIServiceError("GEMINI_API_KEY is not configured in environment variables.")
 
-        user_prompt = build_classification_prompt(client_request, scope_items)
+        user_prompt = build_classification_prompt(client_request, scope_items, lessons=lessons)
 
         url = f"{self.base_url}/{self.model}:generateContent?key={self.api_key}"
         payload = {

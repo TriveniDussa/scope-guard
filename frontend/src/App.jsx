@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import ScopeOfWork from './pages/ScopeOfWork'
 import Tasks from './pages/Tasks'
+import RequestChecker from './pages/RequestChecker'
 
 function App() {
-  const [activeTab, setActiveTab] = useState('tasks')
+  const [activeTab, setActiveTab] = useState('request-checker')
   const [token, setToken] = useState(null)
 
   return (
@@ -11,7 +12,7 @@ function App() {
       {/* Top Header */}
       <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 w-full flex items-center justify-between py-3.5">
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('tasks')}>
+          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setActiveTab('request-checker')}>
             <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/30">
               SG
             </div>
@@ -23,6 +24,16 @@ function App() {
 
           {/* Navigation Tabs */}
           <nav className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+            <button
+              onClick={() => setActiveTab('request-checker')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition ${
+                activeTab === 'request-checker'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              AI Request Checker
+            </button>
             <button
               onClick={() => setActiveTab('tasks')}
               className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition ${
@@ -57,10 +68,10 @@ function App() {
 
           <div className="hidden sm:flex items-center gap-2">
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Day 7 Live
+              Day 8 Live
             </span>
             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-              Task Execution
+              AI Checker
             </span>
           </div>
         </div>
@@ -68,6 +79,8 @@ function App() {
 
       {/* Main View Area */}
       <main className="flex-1">
+        {activeTab === 'request-checker' && <RequestChecker token={token} />}
+
         {activeTab === 'tasks' && <Tasks token={token} />}
 
         {activeTab === 'scope-of-work' && <ScopeOfWork token={token} />}

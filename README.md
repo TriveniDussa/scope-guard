@@ -15,8 +15,8 @@ Scope Guard is a multi-tenant web application engineered specifically for digita
 | **Database** | PostgreSQL (Supabase) | Multi-tenant relational schema with native UUID primary keys |
 | **ORM & Migrations** | SQLAlchemy 2.0 + Alembic | Declarative mapping, cross-platform GUID type, versioned migrations |
 | **Authentication** | JWT (PyJWT) + bcrypt | Secure password hashing (12 rounds) and stateless Bearer tokens |
-| **AI Integration** | Google Gemini API | Automated scope-creep and risk analysis engine *(Phase 2)* |
-| **Testing** | Pytest + HTTPX | Integration and tenant-isolation test coverage |
+| **AI Integration** | Google Gemini API (`gemini-1.5-flash`) | Modular AI Scope Request Checker returning exact classifications & polite client replies |
+| **Testing** | Pytest + HTTPX | Integration, tenant-isolation, and AI mock test coverage |
 
 ---
 
@@ -35,7 +35,10 @@ scope-guard/
 │   │   ├── env.py                  # Dynamic database URL injection and model metadata registration
 │   │   ├── script.py.mako          # Revision generation template
 │   │   └── versions/
-│   │       └── 001_initial_schema.py # Initial migration creating all 8 PostgreSQL tables
+│   │       ├── 001_initial_schema.py        # Initial migration creating all 8 PostgreSQL tables
+│   │       ├── 002_update_scope_items_table.py # Day 6: included/not_included descriptions
+│   │       ├── 003_update_tasks_table.py    # Day 7: tasks status and deliverable linking
+│   │       └── 004_update_requests_table.py # Day 8: requests schema for AI Request Checker
 │   ├── app/
 │   │   ├── __init__.py
 │   │   ├── main.py                 # FastAPI initialization, CORS middleware, healthcheck routes
@@ -59,18 +62,40 @@ scope-guard/
 │   │   ├── schemas/                # Pydantic validation & serialization schemas
 │   │   │   ├── __init__.py
 │   │   │   ├── auth.py             # Token, TokenPayload, LoginRequest
-│   │   │   ├── user.py             # UserRead (never exposes hashed_password), Signup schemas
+│   │   │   ├── user.py             # UserRead, Signup schemas
+│   │   │   ├── client.py           # ClientCreate, ClientRead, ClientUpdate
+│   │   │   ├── project.py          # ProjectCreate, ProjectRead, ProjectUpdate
+│   │   │   ├── scope_item.py       # ScopeItemCreate, ScopeItemRead, ScopeItemUpdate
+│   │   │   ├── task.py             # TaskCreate, TaskRead, TaskUpdate
+│   │   │   ├── request.py          # RequestCheckIn, RequestRead
 │   │   │   └── workspace.py        # WorkspaceRead, WorkspaceCreate
+│   │   ├── services/               # Modular service layer
+│   │   │   └── ai/                 # Modular AI provider architecture
+│   │   │       ├── __init__.py
+│   │   │       ├── base.py         # BaseAIService abstract interface & Pydantic models
+│   │   │       ├── prompt.py       # Deterministic system instructions & prompt builder
+│   │   │       ├── gemini.py       # Google Gemini 1.5 Flash REST client with structured JSON
+│   │   │       └── factory.py      # Provider factory dependency
 │   │   └── api/
 │   │       └── v1/
 │   │           ├── api.py          # Root v1 router assembling endpoint submodules
 │   │           └── endpoints/
 │   │               ├── auth.py     # Agency signup, user login, and /auth/me profile
-│   │               └── users.py    # Workspace-isolated user listing
+│   │               ├── users.py    # Workspace-isolated user listing
+│   │               ├── clients.py  # Client CRUD
+│   │               ├── projects.py # Project CRUD
+│   │               ├── scope_items.py # Scope of Work CRUD
+│   │               ├── tasks.py    # Task CRUD & deliverable linking
+│   │               └── requests.py # AI Request Checker endpoints
 │   └── tests/
 │       ├── __init__.py
 │       ├── conftest.py             # Pytest fixtures, test database engine, FastAPI TestClient
 │       ├── test_auth.py            # Signup, login, invalid password, token rejection tests
+│       ├── test_clients.py         # Client CRUD & workspace isolation tests
+│       ├── test_projects.py        # Project CRUD, status transitions & isolation tests
+│       ├── test_scope_items.py     # Scope CRUD & dual description tests
+│       ├── test_tasks.py           # Task CRUD & deliverable validation tests
+│       ├── test_requests.py        # AI Request Checker, mocked Gemini, & classification tests
 │       └── test_workspace_isolation.py # Multi-tenant isolation verification across separate agencies
 └── frontend/                       # React + Vite Frontend Application
     ├── package.json                # Frontend package configuration (React 19, Tailwind CSS v4)
@@ -78,7 +103,11 @@ scope-guard/
     ├── index.html                  # HTML5 application shell
     └── src/
         ├── main.jsx                # React DOM root mounting
-        ├── App.jsx                 # Landing view with tech stack and status overview
+        ├── App.jsx                 # Tabbed navigation shell
+        ├── pages/
+        │   ├── RequestChecker.jsx  # Day 8: AI Request Checker with Gemini 1.5 Flash
+        │   ├── Tasks.jsx           # Day 7: Task management & deliverable linking
+        │   └── ScopeOfWork.jsx     # Day 6: Scope of Work Included/Not Included editor
         └── index.css               # Tailwind CSS v4 root stylesheet
 ```
 
@@ -176,13 +205,11 @@ erDiagram
 - `id` (UUID, Primary Key, default `uuid4`): Request identifier.
 - `workspace_id` (UUID, FK -> `workspaces.id` ON DELETE CASCADE, NOT NULL, INDEX): Tenant isolation link.
 - `project_id` (UUID, FK -> `projects.id` ON DELETE CASCADE, NOT NULL, INDEX): Target project.
-- `submitted_by_user_id` (UUID, FK -> `users.id` ON DELETE SET NULL, NULLABLE, INDEX): Submitter.
-- `title` (VARCHAR(255), NOT NULL): Requested feature or adjustment.
-- `description` (TEXT, NOT NULL): Detailed client request description.
-- `ai_analysis` (TEXT, NULLABLE): AI evaluation comparing the request against baseline `scope_items`.
-- `impact_hours` (NUMERIC(8, 2), NULLABLE): Additional hours projected.
-- `impact_cost` (NUMERIC(12, 2), NULLABLE): Additional cost projected.
-- `status` (VARCHAR(50), DEFAULT `'pending_analysis'`, NOT NULL): `pending_analysis`, `in_scope`, `scope_creep_detected`, `approved`, `rejected`.
+- `user_id` (UUID, FK -> `users.id` ON DELETE SET NULL, NULLABLE, INDEX): Submitting agency user.
+- `client_request` (TEXT, NOT NULL): The client's requested deliverable or modification.
+- `classification` (VARCHAR(50), DEFAULT `'Not sure'`, NOT NULL): Exact AI outcome (`In scope`, `Out of scope`, `Not sure`).
+- `reason` (TEXT, NOT NULL): Short justification based strictly on the project's agreed scope baseline.
+- `client_reply` (TEXT, NOT NULL): Courteous and professional communication draft for the client.
 - `created_at` (TIMESTAMP WITH TIME ZONE, DEFAULT `now()`, NOT NULL).
 - `updated_at` (TIMESTAMP WITH TIME ZONE, DEFAULT `now()`, NOT NULL).
 
@@ -237,7 +264,10 @@ Create `backend/.env` using `backend/.env.example`:
 | `ALGORITHM` | JWT signing algorithm | `HS256` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES`| JWT validity duration in minutes | `1440` (24 hours) |
 | `ENVIRONMENT` | Runtime mode (`development`, `production`, `test`) | `development` |
+| `AI_PROVIDER` | AI service provider selection (`gemini` or `openai`) | `gemini` |
+| `AI_MODEL` | Large language model name | `gemini-1.5-flash` |
 | `GEMINI_API_KEY` | Google Gemini API key for Scope Creep AI | `AIzaSy...` |
+| `OPENAI_API_KEY` | (Optional) OpenAI API key for alternative provider | `sk-...` |
 
 ---
 
@@ -286,9 +316,11 @@ All test cases will run and pass:
 tests/test_auth.py (8 passed)
 tests/test_clients.py (8 passed)
 tests/test_projects.py (10 passed)
+tests/test_requests.py (12 passed)
 tests/test_scope_items.py (11 passed)
+tests/test_tasks.py (12 passed)
 tests/test_workspace_isolation.py (1 passed)
-======================= 38 passed in 9.52s ========================
+======================= 62 passed in 20.40s ========================
 ```
 
 ---
@@ -328,6 +360,11 @@ tests/test_workspace_isolation.py (1 passed)
 - `PUT /api/v1/tasks/{id}`: Update task title, due date, status (`To do`, `Doing`, `Done`), or linked project/scope item.
 - `DELETE /api/v1/tasks/{id}`: Delete a task within the workspace.
 
+### AI Request Checker (`/api/v1/requests`)
+- `POST /api/v1/requests/check`: Evaluate a client request against the selected project's agreed scope using Google Gemini 1.5 Flash. Returns `classification` (`In scope`, `Out of scope`, `Not sure`), `reason`, and `client_reply`.
+- `GET /api/v1/requests`: List request evaluation history in the workspace (supports `?project_id=` filter).
+- `GET /api/v1/requests/{id}`: Retrieve a specific evaluated request by ID.
+
 ---
 
 ### Step 3: Start Backend API Server
@@ -366,4 +403,5 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 | **Client CRUD** | Full CRUD with input validation and workspace scoping | ✅ 8 tests in `test_clients.py` |
 | **Project CRUD** | Client-project workspace relationship enforcement & `Active`/`Done` status | ✅ 10 tests in `test_projects.py` |
 | **Scope of Work CRUD** | Dual Included/Not Included text fields, project validation & filtering | ✅ 11 tests in `test_scope_items.py` |
-| **Task Management CRUD** | Scope-item deliverable linking, project relationship check, `To do`/`Doing`/`Done` status | ✅ 12 tests in `test_tasks.py` (50 total passing tests) |
+| **Task Management CRUD** | Scope-item deliverable linking, project relationship check, `To do`/`Doing`/`Done` status | ✅ 12 tests in `test_tasks.py` |
+| **AI Request Checker** | Modular Gemini 1.5 Flash evaluation, exact classification (`In scope`, `Out of scope`, `Not sure`), justification & polite client reply draft | ✅ 12 tests in `test_requests.py` (62 total passing tests) |

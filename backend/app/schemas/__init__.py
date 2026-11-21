@@ -28,6 +28,10 @@ from app.schemas.task import (
     TaskUpdate,
     TaskStatus,
 )
+from app.schemas.request import (
+    RequestCheckIn,
+    RequestRead,
+)
 
 __all__ = [
     "Token",
@@ -59,4 +63,6 @@ __all__ = [
     "TaskRead",
     "TaskUpdate",
     "TaskStatus",
+    "RequestCheckIn",
+    "RequestRead",
 ]

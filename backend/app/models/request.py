@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, ForeignKey, Numeric, String, Text
+from sqlalchemy import Column, ForeignKey, String, Text
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base, GUID
@@ -8,8 +8,8 @@ from app.models.base import TimestampMixin
 
 class Request(Base, TimestampMixin):
     """
-    Client Change Request entity.
-    Submissions are evaluated by AI to detect scope creep against baseline scope_items.
+    Client Change Request evaluated by the AI Request Checker.
+    Stores the client request text, the AI classification, explanation reason, and polite client reply.
     """
     __tablename__ = "requests"
 
@@ -26,31 +26,21 @@ class Request(Base, TimestampMixin):
         nullable=False,
         index=True,
     )
-    submitted_by_user_id = Column(
+    user_id = Column(
         GUID,
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
-    title = Column(String(255), nullable=False)
-    description = Column(Text, nullable=False)
-    ai_analysis = Column(Text, nullable=True)
-    impact_hours = Column(Numeric(8, 2), nullable=True)
-    impact_cost = Column(Numeric(12, 2), nullable=True)
-    status = Column(
-        String(50),
-        nullable=False,
-        default="pending_analysis",
-    )  # pending_analysis, in_scope, scope_creep_detected, approved, rejected
+    client_request = Column(Text, nullable=False)
+    classification = Column(String(50), nullable=False)  # "In scope", "Out of scope", "Not sure"
+    reason = Column(Text, nullable=False)
+    client_reply = Column(Text, nullable=False)
 
     # Relationships
     workspace = relationship("Workspace", back_populates="requests")
     project = relationship("Project", back_populates="requests")
-    submitted_by = relationship(
-        "User",
-        back_populates="submitted_requests",
-        foreign_keys=[submitted_by_user_id],
-    )
+    user = relationship("User", back_populates="submitted_requests")
 
     def __repr__(self):
-        return f"<Request(id={self.id}, title='{self.title}', status='{self.status}')>"
+        return f"<Request(id={self.id}, project_id={self.project_id}, classification='{self.classification}')>"

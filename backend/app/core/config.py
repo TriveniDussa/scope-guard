@@ -19,8 +19,11 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
     
-    # Optional Gemini API Key
+    # AI Provider Configuration
+    AI_PROVIDER: str = "gemini"  # "gemini" or "openai"
+    AI_MODEL: str = "gemini-1.5-flash"  # Supported production Gemini model
     GEMINI_API_KEY: Optional[str] = None
+    OPENAI_API_KEY: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env"),

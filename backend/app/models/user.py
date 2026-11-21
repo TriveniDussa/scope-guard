@@ -30,8 +30,8 @@ class User(Base, TimestampMixin):
     workspace = relationship("Workspace", back_populates="users")
     submitted_requests = relationship(
         "Request",
-        back_populates="submitted_by",
-        foreign_keys="Request.submitted_by_user_id",
+        back_populates="user",
+        foreign_keys="Request.user_id",
     )
 
     def __repr__(self):

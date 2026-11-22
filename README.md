@@ -15,8 +15,9 @@ Scope Guard is a multi-tenant web application engineered specifically for digita
 | **Database** | PostgreSQL (Supabase) | Multi-tenant relational schema with native UUID primary keys |
 | **ORM & Migrations** | SQLAlchemy 2.0 + Alembic | Declarative mapping, cross-platform GUID type, versioned migrations |
 | **Authentication** | JWT (PyJWT) + bcrypt | Secure password hashing (12 rounds) and stateless Bearer tokens |
-| **AI Integration** | Google Gemini API (`gemini-1.5-flash`) | Modular AI Scope Request Checker returning exact classifications & polite client replies |
-| **Testing** | Pytest + HTTPX | Integration, tenant-isolation, and AI mock test coverage |
+| **AI Integration** | Google Gemini API (`gemini-2.5-flash`) | Modular AI Scope Request Checker returning exact classifications & polite client replies |
+| **Testing** | Pytest + HTTPX | Integration, tenant-isolation, resilience, and AI mock test coverage |
+
 
 ---
 
@@ -26,8 +27,9 @@ Scope Guard is a multi-tenant web application engineered specifically for digita
 scope-guard/
 ├── .gitignore                      # Git ignore rules for Python, Node, Vite, and environment files
 ├── README.md                       # Complete architecture, database, and setup documentation
+├── render.yaml                     # Render Blueprint for zero-friction FastAPI deployment
 ├── backend/                        # FastAPI Backend Application
-│   ├── .env.example                # Example environment configuration template
+│   ├── .env.example                # Example environment configuration template (DATABASE_URL, GEMINI_API_KEY, CORS_ORIGINS)
 │   ├── .env                        # Local environment variables (git-ignored)
 │   ├── requirements.txt            # Python dependencies (FastAPI, SQLAlchemy, Alembic, psycopg2, etc.)
 │   ├── alembic.ini                 # Alembic migration runner configuration
@@ -76,7 +78,7 @@ scope-guard/
 │   │   │       ├── __init__.py
 │   │   │       ├── base.py         # BaseAIService abstract interface & Pydantic models
 │   │   │       ├── prompt.py       # Deterministic system instructions, prompt builder & Hierarchy of Truth
-│   │   │       ├── gemini.py       # Google Gemini 1.5 Flash REST client with structured JSON
+│   │   │       ├── gemini.py       # Google Gemini 2.5 Flash REST client with structured JSON
 │   │   │       └── factory.py      # Provider factory dependency
 │   │   └── api/
 │   │       └── v1/
@@ -100,12 +102,15 @@ scope-guard/
 │       ├── test_tasks.py           # Task CRUD & deliverable validation tests
 │       ├── test_requests.py        # AI Request Checker & classification tests
 │       ├── test_lessons.py         # Day 9: Feedback, Lessons, Check Again & AI context tests
+│       ├── test_production.py      # Health endpoint, CORS parsing & Gemini AI resilience tests
 │       └── test_workspace_isolation.py # Multi-tenant isolation verification across separate agencies
 └── frontend/                       # React + Vite Frontend Application
     ├── .env.example                # Frontend environment configuration template (VITE_API_BASE_URL)
     ├── package.json                # Frontend package configuration (React 19, Tailwind CSS v4)
     ├── vite.config.js              # Vite configuration with @tailwindcss/vite plugin
+    ├── vercel.json                 # Vercel SPA routing and URL rewrite configuration
     ├── index.html                  # HTML5 application shell
+
     └── src/
         ├── main.jsx                # React DOM root mounting
         ├── App.jsx                 # Full agency application shell with AuthProvider and tab navigation
@@ -397,41 +402,75 @@ tests/test_workspace_isolation.py (1 passed)
 - **Project Management Page (`Projects.jsx`)**: Project lifecycle management with client association dropdowns, status toggling (`Active` / `Done`), and filtering.
 - **Scope of Work Baseline (`ScopeOfWork.jsx`)**: Contractual baseline editor enforcing dual Included deliverables and Not Included exclusions per project.
 - **Task Management Page (`Tasks.jsx`)**: Sprint task tracker strictly linked to verified scope deliverables to eliminate phantom tasks.
-- **AI Request Checker Page (`RequestChecker.jsx`)**: AI scope evaluation using Gemini 1.5 Flash with agency human-in-the-loop feedback (`Right`/`Wrong`) and immutable `Check Again` comparative analysis.
+- **AI Request Checker Page (`RequestChecker.jsx`)**: AI scope evaluation using Gemini 2.5 Flash with agency human-in-the-loop feedback (`Right`/`Wrong`) and immutable `Check Again` comparative analysis.
 - **Agency Overview Dashboard (`Dashboard.jsx`)**: Live KPI metrics (Clients, Projects, Scope Items, Tasks, AI Requests, Lessons), quick action launchpad, and recent AI evaluations.
 - **Application Shell (`App.jsx`)**: Clean navigation header, workspace and user profile badges, mobile drawer, and logout controls.
 
 ---
 
-### Step 3: Start Backend API Server
+## 🌐 Production Deployment Guide
 
-Run the FastAPI development server with live reload:
-```bash
-cd backend
-python -m uvicorn app.main:app --reload --port 8000
-```
-- Interactive Swagger API Documentation: [http://127.0.0.1:8000/api/v1/docs](http://127.0.0.1:8000/api/v1/docs)
-- Alternative ReDoc API Documentation: [http://127.0.0.1:8000/api/v1/redoc](http://127.0.0.1:8000/api/v1/redoc)
-- Healthcheck: [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health)
+### 1. Hosted Database Deployment (Supabase / Neon PostgreSQL)
+
+1. **Create Database**:
+   - In [Supabase](https://supabase.com) or [Neon](https://neon.tech), create a new PostgreSQL project named `scope-guard`.
+   - Copy your connection string URI (Format: `postgresql+psycopg2://postgres:[YOUR-PASSWORD]@[HOST]:5432/postgres`).
+2. **Apply All 5 Alembic Migrations**:
+   Set your database URI in the local environment or terminal and run migrations:
+   ```bash
+   cd backend
+   export DATABASE_URL="postgresql+psycopg2://postgres:[YOUR-PASSWORD]@[HOST]:5432/postgres"
+   alembic upgrade head
+   ```
+   *This automatically provisions all 8 tables, indexes, foreign keys, and unique constraints without resetting any data.*
 
 ---
 
-### Step 4: Start Frontend Client
+### 2. Backend Deployment on Render
 
-In a separate terminal, start the React + Vite development server:
-```bash
-cd frontend
-cp .env.example .env    # Configure VITE_API_BASE_URL if needed
-npm install
-npm run dev
-```
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+1. **Create Web Service on Render**:
+   - Sign in to [Render](https://render.com) and click **New +** $\rightarrow$ **Web Service**.
+   - Connect your GitHub repository: `https://github.com/TriveniDussa/scope-guard`.
+   - Configure the service settings:
+     * **Name**: `scope-guard-api`
+     * **Root Directory**: `backend`
+     * **Environment**: `Python 3`
+     * **Build Command**: `pip install -r requirements.txt`
+     * **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+2. **Configure Environment Variables in Render**:
+   | Key | Value / Description |
+   | :--- | :--- |
+   | `DATABASE_URL` | Your hosted Supabase/Neon PostgreSQL connection URI |
+   | `SECRET_KEY` | High-entropy 32+ character string (e.g. `python -c "import secrets; print(secrets.token_hex(32))"`) |
+   | `ALGORITHM` | `HS256` |
+   | `ACCESS_TOKEN_EXPIRE_MINUTES` | `1440` |
+   | `ENVIRONMENT` | `production` |
+   | `AI_PROVIDER` | `gemini` |
+   | `AI_MODEL` | `gemini-2.5-flash` |
+   | `GEMINI_API_KEY` | Your Google AI Studio API key |
+   | `CORS_ORIGINS` | `https://[YOUR-VERCEL-DOMAIN].vercel.app,http://localhost:5173` |
+3. **Verify API Health**:
+   - Check `https://[YOUR-RENDER-URL]/health` $\rightarrow$ Returns `{"status": "healthy"}`.
+   - Interactive Swagger API docs are accessible at `https://[YOUR-RENDER-URL]/api/v1/docs`.
 
-To verify a production build:
-```bash
-cd frontend
-npm run build
-```
+---
+
+### 3. Frontend Deployment on Vercel
+
+1. **Import Project on Vercel**:
+   - Sign in to [Vercel](https://vercel.com) and click **Add New...** $\rightarrow$ **Project**.
+   - Select `scope-guard` repository.
+2. **Configure Build Settings**:
+   - **Framework Preset**: `Vite`
+   - **Root Directory**: Click edit and select `frontend`.
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+3. **Configure Environment Variables in Vercel**:
+   | Key | Value |
+   | :--- | :--- |
+   | `VITE_API_BASE_URL` | `https://[YOUR-RENDER-URL]/api/v1` |
+4. **Deploy**:
+   - Click **Deploy**. Vercel will build the frontend and serve it using [`frontend/vercel.json`](frontend/vercel.json) for client-side routing.
 
 ---
 
@@ -442,12 +481,14 @@ npm run build
 | **UUID Primary Keys** | `GUID` custom TypeDecorator mapping to `postgresql.UUID(as_uuid=True)` | ✅ Tested in all entity tables |
 | **8 PostgreSQL Tables** | `workspaces`, `users`, `clients`, `projects`, `scope_items`, `tasks`, `requests`, `lessons` | ✅ Verified via Alembic DDL & migrations |
 | **Workspace Isolation** | Every table has `workspace_id` indexed FK; API dependencies strictly isolate by JWT | ✅ `test_strict_workspace_isolation` & cross-workspace tests |
-| **JWT + Bcrypt Auth** | Stateless Bearer token generation, 12 rounds bcrypt salting | ✅ `test_agency_signup_success`, `test_login_success` |
+| **JWT + Bcrypt Auth** | Stateless Bearer token generation, 12 rounds bcrypt salting | ✅ `test_agency_signup_success`, `test_login_success` (8 tests) |
 | **Client CRUD** | Full CRUD with input validation and workspace scoping | ✅ 8 tests in `test_clients.py` |
 | **Project CRUD** | Client-project workspace relationship enforcement & `Active`/`Done` status | ✅ 10 tests in `test_projects.py` |
 | **Scope of Work CRUD** | Dual Included/Not Included text fields, project validation & filtering | ✅ 11 tests in `test_scope_items.py` |
 | **Task Management CRUD** | Scope-item deliverable linking, project relationship check, `To do`/`Doing`/`Done` status | ✅ 12 tests in `test_tasks.py` |
-| **AI Request Checker** | Modular Gemini 1.5 Flash evaluation, exact classification (`In scope`, `Out of scope`, `Not sure`), justification & polite client reply draft | ✅ 12 tests in `test_requests.py` |
-| **Continuous Learning & Check Again** | Human-in-the-loop Right/Wrong feedback, lessons knowledge base persistence, Hierarchy of Truth prompt context, immutable Check Again comparison | ✅ 15 tests in `test_lessons.py` (77 total passing tests) |
-| **Complete Browser Application & Auth Integration** | React 19 + Tailwind v4 SPA with AuthContext, full CRUD for Clients & Projects, Scope, Tasks, AI Checker, Overview Dashboard & zero mock data | ✅ Production build verified (`npm run build`) & 77 passing backend tests |
+| **AI Request Checker** | Modular Gemini 2.5 Flash evaluation, exact classification (`In scope`, `Out of scope`, `Not sure`), justification & polite client reply draft | ✅ 12 tests in `test_requests.py` |
+| **Continuous Learning & Check Again** | Human-in-the-loop Right/Wrong feedback, lessons knowledge base persistence, Hierarchy of Truth prompt context, immutable Check Again comparison | ✅ 15 tests in `test_lessons.py` |
+| **Production Health & Resilience** | `/health` check, CORS origins parser, Gemini rate limit (429) & code-fence stripping | ✅ 6 tests in `test_production.py` (83 total passing tests) |
+| **Complete Browser Application & Auth Integration** | React 19 + Tailwind v4 SPA with AuthContext, full CRUD for Clients & Projects, Scope, Tasks, AI Checker, Overview Dashboard & zero mock data | ✅ Production build verified (`npm run build`) & 83 passing backend tests |
+
 

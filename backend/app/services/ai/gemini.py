@@ -23,7 +23,7 @@ class GeminiAIService(BaseAIService):
     """
     def __init__(self, api_key: str = None, model: str = None):
         self.api_key = api_key or settings.GEMINI_API_KEY
-        self.model = model or settings.AI_MODEL or "gemini-1.5-flash"
+        self.model = model or settings.GEMINI_MODEL or settings.AI_MODEL or "gemini-2.5-flash"
         self.base_url = "https://generativelanguage.googleapis.com/v1beta/models"
 
     def classify_request(
@@ -61,6 +61,16 @@ class GeminiAIService(BaseAIService):
             if response.status_code != 200:
                 err_text = response.text
                 logger.error(f"Gemini API returned status {response.status_code}: {err_text}")
+                if response.status_code == 429:
+                    raise AIServiceError(
+                        "Gemini API rate limit exceeded (HTTP 429). Please wait a moment and try again.",
+                        original_error=err_text,
+                    )
+                if response.status_code == 404:
+                    raise AIServiceError(
+                        f"Gemini API model '{self.model}' not found (HTTP 404). Please verify your AI_MODEL configuration.",
+                        original_error=err_text,
+                    )
                 raise AIServiceError(
                     f"Gemini API error ({response.status_code}): {err_text}",
                     original_error=err_text,
@@ -76,6 +86,16 @@ class GeminiAIService(BaseAIService):
                 raise AIServiceError("Gemini API returned an empty response part.")
 
             raw_text = parts[0].get("text", "").strip()
+
+            # Clean markdown code fences if model enclosed JSON output
+            if raw_text.startswith("```"):
+                lines = raw_text.splitlines()
+                if lines and lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines and lines[-1].strip() == "```":
+                    lines = lines[:-1]
+                raw_text = "\n".join(lines).strip()
+
             parsed_data = json.loads(raw_text)
 
             # Validate structured model
@@ -95,3 +115,4 @@ class GeminiAIService(BaseAIService):
         except Exception as exc:
             logger.error(f"Unexpected error in GeminiAIService: {exc}")
             raise AIServiceError(f"Unexpected error during AI evaluation: {str(exc)}", original_error=exc)
+

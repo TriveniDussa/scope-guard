@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 from fastapi import status
 
-from app.core.config import Settings
+from app.core.config import Settings, settings
 from app.services.ai.base import AIServiceError
 from app.services.ai.gemini import GeminiAIService
 
@@ -40,9 +40,10 @@ def test_cors_origins_parsing():
 
 
 def test_gemini_service_defaults_to_supported_model():
-    """Verify GeminiAIService uses the current supported production model."""
+    """Verify GeminiAIService uses the current configured or default production model."""
     service = GeminiAIService(api_key="test_key")
-    assert service.model == "gemini-2.5-flash"
+    expected_model = settings.GEMINI_MODEL or settings.AI_MODEL or "gemini-2.5-flash"
+    assert service.model == expected_model
 
 
 def test_gemini_service_strips_markdown_code_fences():

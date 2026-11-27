@@ -109,8 +109,13 @@ def check_client_request(
             lessons=lessons,
         )
     except AIServiceError as exc:
+        err_status = (
+            status.HTTP_503_SERVICE_UNAVAILABLE
+            if (getattr(exc, "is_temporary", False) or getattr(exc, "status_code", None) == 503)
+            else status.HTTP_502_BAD_GATEWAY
+        )
         raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
+            status_code=err_status,
             detail=f"AI Service Error: {exc.message}",
         )
     except Exception as exc:
@@ -271,8 +276,13 @@ def check_request_again(
             lessons=lessons,
         )
     except AIServiceError as exc:
+        err_status = (
+            status.HTTP_503_SERVICE_UNAVAILABLE
+            if (getattr(exc, "is_temporary", False) or getattr(exc, "status_code", None) == 503)
+            else status.HTTP_502_BAD_GATEWAY
+        )
         raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
+            status_code=err_status,
             detail=f"AI Service Error: {exc.message}",
         )
     except Exception as exc:

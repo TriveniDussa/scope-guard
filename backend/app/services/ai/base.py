@@ -18,10 +18,18 @@ class AIClassificationResult(BaseModel):
 
 class AIServiceError(Exception):
     """Exception raised when an AI service provider call fails."""
-    def __init__(self, message: str, original_error: Any = None):
+    def __init__(
+        self,
+        message: str,
+        original_error: Any = None,
+        status_code: int = 502,
+        is_temporary: bool = False,
+    ):
         super().__init__(message)
         self.message = message
         self.original_error = original_error
+        self.status_code = status_code
+        self.is_temporary = is_temporary
 
 
 class BaseAIService(ABC):
